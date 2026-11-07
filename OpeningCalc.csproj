@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>OpeningCalc</AssemblyName>
+    <RootNamespace>OpeningCalc</RootNamespace>
+    <Version>1.1.0</Version>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 카드 이름 조회용 cdb 리더(편집기 소스 재사용) -->
+    <Compile Include="..\WindBotAIEditor\Services\CardDatabase.cs" Link="CardDatabase.cs" />
+  </ItemGroup>
+
+</Project>
