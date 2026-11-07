@@ -21,6 +21,11 @@ namespace OpeningCalc
                 if (args[0] == "--dumpui") return DumpUi();
                 if (args[0] == "--screenshot" && args.Length >= 2) return Shot(args[1], args.Length >= 3 ? args[2] : null);
                 if (args[0] == "--calc") return Calc(args);
+                if (args[0] == "--plancheck" && args.Length >= 2) return PlanCli.Run(args);
+                if (args[0] == "--planshot" && args.Length >= 2) return PlanShot(args);
+                if (args[0] == "--groupshot" && args.Length >= 2) return GroupShot(args);
+                if (args[0] == "--trapshot" && args.Length >= 2) return TrapShot(args);
+                if (args[0] == "--statstext" && args.Length >= 2) return StatsText(args);
                 if (args[0] == "--help" || args[0] == "-h")
                 {
                     Usage();
@@ -59,6 +64,7 @@ namespace OpeningCalc
             Console.WriteLine("  OpeningCalc.exe --calc <deck.ydk> [옵션]         콘솔 계산");
             Console.WriteLine("  OpeningCalc.exe --selftest                       수식 자체 검증(전수 열거 대조)");
             Console.WriteLine("  OpeningCalc.exe --uicheck                        창 없이 UI 구성 검사");
+            Console.WriteLine("  OpeningCalc.exe --plancheck <scenario.json>      초동 플랜 확률 계산(검증/자동화용 JSON)");
             Console.WriteLine();
             Console.WriteLine("--calc 옵션");
             Console.WriteLine("  --cdb <EDOPro폴더>     카드 이름을 읽을 cdb (기본: 자동 탐색 D:\\edopro 등)");
@@ -72,6 +78,7 @@ namespace OpeningCalc
         {
             var log = new List<string>();
             int fail = Odds.SelfTest(log);
+            fail += PlanOdds.SelfTest(log);
             foreach (string l in log) Console.WriteLine("  " + l);
 
             // 실제 덱 파일이 있으면 파싱·이름 조회도 확인
@@ -98,6 +105,130 @@ namespace OpeningCalc
                 f.SaveScreenshot(outPath);
             }
             Console.WriteLine("SHOT " + outPath);
+            return 0;
+        }
+
+        /// <summary>카드군/조건 창 스크린샷(레이아웃 검증용).</summary>
+        private static int GroupShot(string[] args)
+        {
+            string outPath = args[1];
+            string deckPath = args.Length >= 3 ? args[2] : null;
+            if (string.IsNullOrEmpty(deckPath) || !File.Exists(deckPath))
+                deckPath = @"D:\edopro\WindBot\Decks\AI_raisemoon.ydk";
+            DeckInfo deck;
+            try
+            {
+                deck = DeckLoader.Load(deckPath);
+                DeckLoader.FillNames(deck, DeckLoader.GuessEdoPro());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("GROUPSHOT FAIL " + ex.Message);
+                return 2;
+            }
+            var groups = new List<CardGroup>();
+            var g1 = new CardGroup { Name = "시간의 흑마술사 테마" };
+            for (int i = 0; i < Math.Min(6, deck.Main.Count); i++) g1.Ids.Add(deck.Main[i].Id);
+            groups.Add(g1);
+            var g2 = new CardGroup { Name = "와이반/로켓" };
+            for (int i = 1; i < Math.Min(3, deck.Main.Count); i++) g2.Ids.Add(deck.Main[i].Id);
+            groups.Add(g2);
+
+            using (var f = new CardGroupForm(deck, groups))
+            {
+                f.CreateControl();
+                f.SaveShot(outPath);
+            }
+            Console.WriteLine("GROUPSHOT " + outPath);
+            return 0;
+        }
+
+        /// <summary>확률 분석 결과를 텍스트로 출력(검증·자동화).</summary>
+        private static int StatsText(string[] args)
+        {
+            string deckPath = args[1];
+            if (!File.Exists(deckPath)) { Console.WriteLine("덱 없음: " + deckPath); return 2; }
+            var deck = DeckLoader.Load(deckPath);
+            DeckLoader.FillNames(deck, DeckLoader.GuessEdoPro());
+            var preset = PlanStore.Load(deckPath);
+            int hand = 5;
+            for (int i = 2; i < args.Length - 1; i++) if (args[i] == "--hand") int.TryParse(args[i + 1], out hand);
+            using (var f = new DeckStatsForm(deck, hand, preset.Plans, preset.Groups, preset.HandTrapIds, preset.BrickIds))
+            {
+                f.CreateControl();
+                Console.Write(f.OutputText);
+            }
+            return 0;
+        }
+
+        /// <summary>확률 분석 창 스크린샷(레이아웃·계산 검증용).</summary>
+        private static int TrapShot(string[] args)
+        {
+            string outPath = args[1];
+            string deckPath = args.Length >= 3 ? args[2] : null;
+            if (string.IsNullOrEmpty(deckPath) || !File.Exists(deckPath))
+                deckPath = @"D:\edopro\WindBot\Decks\AI_raisemoon.ydk";
+            DeckInfo deck;
+            try
+            {
+                deck = DeckLoader.Load(deckPath);
+                DeckLoader.FillNames(deck, DeckLoader.GuessEdoPro());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("TRAPSHOT FAIL " + ex.Message);
+                return 2;
+            }
+            // 데모: 앞의 카드 4종을 패트랩, 마지막 1종을 곤란 카드로, 플랜 1개를 만들어 조합까지 보이게
+            var trapIds = deck.Main.Take(4).Select(c => c.Id).ToList();
+            var brickIds = deck.Main.Skip(Math.Max(0, deck.Main.Count - 1)).Select(c => c.Id).ToList();
+            var plans = new List<Plan>
+            {
+                new Plan
+                {
+                    Name = "와이반 + 흑마",
+                    Slots = new List<PlanSlot>
+                    {
+                        new PlanSlot { Need = 1, Ids = new List<int> { deck.Main[0].Id } },
+                        new PlanSlot { Need = 1, Ids = new List<int> { deck.Main[1].Id } }
+                    }
+                }
+            };
+            using (var f = new DeckStatsForm(deck, 5, plans, null, trapIds, brickIds))
+            {
+                f.CreateControl();
+                f.SaveShot(outPath);
+            }
+            Console.WriteLine("TRAPSHOT " + outPath);
+            return 0;
+        }
+
+        /// <summary>초동 플랜 창 스크린샷(레이아웃 검증용).</summary>
+        private static int PlanShot(string[] args)
+        {
+            string outPath = args[1];
+            string deckPath = args.Length >= 3 ? args[2] : null;
+            if (string.IsNullOrEmpty(deckPath) || !File.Exists(deckPath))
+                deckPath = @"D:\edopro\WindBot\Decks\AI_raisemoon.ydk";
+            DeckInfo deck;
+            try
+            {
+                deck = DeckLoader.Load(deckPath);
+                DeckLoader.FillNames(deck, DeckLoader.GuessEdoPro());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("PLANSHOT FAIL " + ex.Message);
+                return 2;
+            }
+            using (var f = new PlanForm(deck, 5, null))
+            {
+                f.NoSaveOnClose = true;
+                f.CreateControl();
+                f.DemoForTest();
+                f.SaveScreenshot(outPath);
+            }
+            Console.WriteLine("PLANSHOT " + outPath);
             return 0;
         }
 

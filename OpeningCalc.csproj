@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>OpeningCalc</AssemblyName>
     <RootNamespace>OpeningCalc</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.6.0</Version>
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
   </PropertyGroup>
 
