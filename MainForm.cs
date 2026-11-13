@@ -69,7 +69,7 @@ namespace OpeningCalc
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));   // 제목
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));   // 덱/카드DB
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // 본문
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));   // 로그
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));  // 로그
             Controls.Add(root);
 
             // ── 제목 ──────────────────────────────────────────
@@ -196,8 +196,9 @@ namespace OpeningCalc
             var colCnt = Col("Count", "장수", 52, true);
             colCnt.DataPropertyName = "Count";
             GridCards.Columns.Add(colCnt);
-            var colP1 = Col("P1", "≥1 (이 카드)", 96, true);
+            var colP1 = Col("P1", "≥1", 96, true);
             colP1.DataPropertyName = "P1";
+            colP1.ToolTipText = "이 카드가 손패에 1장 이상 잡힐 확률";
             GridCards.Columns.Add(colP1);
             GridCards.CellValueChanged += OnCardEdited;
             GridCards.CurrentCellDirtyStateChanged += delegate
@@ -326,7 +327,7 @@ namespace OpeningCalc
             TxtLog.BackColor = Color.FromArgb(24, 25, 28);
             TxtLog.ForeColor = Color.FromArgb(200, 210, 220);
             TxtLog.Font = new Font("Consolas", 8.5f);
-            TxtLog.WordWrap = false;
+            TxtLog.WordWrap = true;   // 줄이 잘리지 않게(가로 스크롤 대신 줄바꿈)
             TxtLog.BorderStyle = BorderStyle.FixedSingle;
             TxtLog.Margin = new Padding(0, 2, 0, 0);
             root.Controls.Add(TxtLog, 0, 3);
